@@ -78,7 +78,11 @@
         let postHistory = [];
 
         function sortPosts(type) {
-            if (creatingPost && isFormDirty()) return showDiscardDialog(() => { creatingPost=false; sortPosts(type); });
+            if (creatingPost) {
+                if (isFormDirty()) return showDiscardDialog(() => { creatingPost=false; sortPosts(type); });
+                hideSubmissionForm();
+                creatingPost = false;
+            }
             console.log("Sorting by: ", type);
             pushHistory();
             renderGrid(posts);
@@ -107,7 +111,11 @@
         }
 
         function goHome() {
-            if (creatingPost && isFormDirty()) return showDiscardDialog(() => { creatingPost=false; goHome(); });
+            if (creatingPost) {
+                if (isFormDirty()) return showDiscardDialog(() => { creatingPost=false; goHome(); });
+                hideSubmissionForm();
+                creatingPost = false;
+            }
             pushHistory();
             renderGrid(posts);
             collapsePost();
@@ -722,11 +730,12 @@
         function confirmDiscard(yes) {
             document.getElementById('discardOverlay').style.display = 'none';
             if (yes && pendingDiscard) {
-                document.getElementById('submissionForm').style.display = 'none';
-                document.getElementById('imageGrid').style.display = 'grid';
+                hideSubmissionForm();
                 pendingDiscard();
+                creatingPost = false;
+            } else if (!yes) {
+                creatingPost = true;
             }
-            creatingPost = false;
             pendingDiscard = null;
         }
 
@@ -751,7 +760,7 @@
             });
         }
 
-       function showSubmissionForm() {
+        function showSubmissionForm() {
             const grid = document.getElementById("imageGrid");
             grid.style.display = 'none';
             const form = document.getElementById("submissionForm");
@@ -770,6 +779,11 @@
             postHistory = getStoredPosts().slice(0,6);
             updateHistoryList();
             updateSubmissionPreview();
+        }
+
+        function hideSubmissionForm() {
+            document.getElementById('submissionForm').style.display = 'none';
+            document.getElementById('imageGrid').style.display = 'grid';
         }
 
        function addPoll() {

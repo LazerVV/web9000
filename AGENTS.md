@@ -60,3 +60,9 @@ Since no JS exists for DKG the idea was to load for example ZenGo-X's Multi-Part
 
 ## Vision
 WEB9000 is a self-organizing alternative to the centralized web, providing a truly open space for community-driven content, governance, and economy. By eliminating platform gatekeeping, it ensures free expression, censorship resistance, and user-driven moderation.
+
+## Development guidelines
+
+* Prefer vanilla JavaScript when possible.
+* A Puppeteer-based test suite exists under `npm test`.
+* Run `npm install` once to set up dependencies, then `npm test` before submitting any PR.

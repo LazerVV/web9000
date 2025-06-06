@@ -1,0 +1,10 @@
+{
+  "name": "web9000",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node tests/overlay.test.js"
+  },
+  "devDependencies": {
+    "puppeteer": "latest"
+  }
+}

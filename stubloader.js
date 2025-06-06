@@ -47,6 +47,60 @@ const examplePosts = [
     { md_text: "Epic video!", attachments: [{ thumb: "thumb/thumb32.mp4", full: "content/content32.mp4" }], polls: [], positions: [], schedules: [], tags: ["video", "epic"], user: "User23", timestamp: "2025-02-27T11:50:00Z" }
 ];
 
-function loadExamplePosts() {
-    return Promise.resolve(examplePosts);
+function getStoredPosts() {
+    try {
+        return JSON.parse(localStorage.getItem('userPosts') || '[]');
+    } catch (e) {
+        return [];
+    }
 }
+
+function saveStoredPosts(posts) {
+    localStorage.setItem('userPosts', JSON.stringify(posts));
+}
+
+function loadExamplePosts() {
+    return Promise.resolve([...getStoredPosts(), ...examplePosts]);
+}
+
+function storePost(post) {
+    const stored = getStoredPosts();
+    stored.unshift(post);
+    saveStoredPosts(stored);
+}
+
+function searchCachedPosts(query) {
+    const all = [...getStoredPosts(), ...examplePosts];
+    const tokens = query.toLowerCase().split(/\s+/);
+    let text = [];
+    let type = null;
+    let from = null;
+    let to = null;
+    let tags = [];
+    tokens.forEach(tok => {
+        if (tok.startsWith('type:')) type = tok.slice(5);
+        else if (tok.startsWith('from:')) from = tok.slice(5);
+        else if (tok.startsWith('to:')) to = tok.slice(3);
+        else if (tok.startsWith('tags:')) tags = tok.slice(5).split(',');
+        else text.push(tok);
+    });
+    text = text.join(' ');
+
+    return Promise.resolve(all.filter(p => {
+        let ok = true;
+        if (type === 'event') ok = ok && p.schedules && p.schedules.length > 0;
+        if (type === 'media') ok = ok && p.attachments && p.attachments.length > 0;
+        if (type === 'poll') ok = ok && p.polls && p.polls.length > 0;
+        if (type === 'text') ok = ok && (!p.attachments || p.attachments.length === 0);
+        if (from) ok = ok && new Date(p.timestamp) >= new Date(from);
+        if (to) ok = ok && new Date(p.timestamp) <= new Date(to);
+        if (tags.length) ok = ok && tags.every(t => (p.tags || []).map(x => x.toLowerCase()).includes(t));
+        if (text) {
+            const q = text.toLowerCase();
+            ok = ok && ((p.md_text && p.md_text.toLowerCase().includes(q)) ||
+                        (p.headline && p.headline.toLowerCase().includes(q)));
+        }
+        return ok;
+    }));
+}
+

@@ -33,11 +33,25 @@
     <div class="grid" id="imageGrid"></div>
     <div class="submission-form" id="submissionForm">
         <div class="submission-preview" id="submissionPreview"></div>
-        <input type="text" id="mdText" placeholder="Markdown Text">
+        <textarea id="mdText" placeholder="Markdown Text"></textarea>
         <input type="text" id="headline" placeholder="Headline (optional)">
         <input type="text" id="attachments" placeholder="Attachments (comma-separated full URLs)">
-        <input type="text" id="polls" placeholder="Polls (e.g., Q:Opt1,Opt2)">
-        <input type="text" id="schedules" placeholder="Schedules (e.g., start:end:location)">
+
+        <div class="poll-creator">
+            <input type="text" id="pollQuestion" placeholder="Poll question">
+            <input type="text" id="pollOptions" placeholder="Options comma separated">
+            <button type="button" onclick="addPoll()">Add Poll</button>
+            <ul id="pollList"></ul>
+        </div>
+
+        <div class="schedule-creator">
+            <input type="datetime-local" id="schedStart">
+            <input type="datetime-local" id="schedEnd">
+            <input type="text" id="schedLocation" placeholder="Location">
+            <button type="button" onclick="addSchedule()">Add Schedule</button>
+            <ul id="scheduleList"></ul>
+        </div>
+
         <input type="text" id="positions" placeholder="Positions (e.g., title:user)">
         <button onclick="submitPost()">Submit Post</button>
     </div>
@@ -54,6 +68,8 @@
         const postsPerRow = 7;
         let navigationHistory = [];
         let currentGalleryOffset = 0;
+        let newPolls = [];
+        let newSchedules = [];
 
         function sortPosts(type) {
             console.log("Sorting by: ", type);
@@ -62,14 +78,11 @@
         }
 
         function searchPosts() {
-            const query = document.getElementById("searchInput").value.toLowerCase();
-            const filteredPosts = posts.filter(post => 
-                post.md_text.toLowerCase().includes(query) || 
-                (post.headline && post.headline.toLowerCase().includes(query)) ||
-                (post.tags && post.tags.some(tag => tag.toLowerCase().includes(query)))
-            );
-            pushHistory();
-            renderGrid(filteredPosts);
+            const query = document.getElementById("searchInput").value;
+            searchCachedPosts(query).then(res => {
+                pushHistory();
+                renderGrid(res);
+            });
         }
 
         function bookmarkPage() {
@@ -119,6 +132,13 @@
             if (['mp4', 'webm'].includes(extension)) return 'video';
             if (['mp3', 'ogg'].includes(extension)) return 'audio';
             return 'document';
+        }
+
+        function createImgPlaceholder() {
+            const div = document.createElement('div');
+            div.classList.add('image-placeholder');
+            div.textContent = 'Image failed to load';
+            return div;
         }
 
         function checkMDReferences(md_text, attachments) {
@@ -338,26 +358,36 @@
                     thumb.onclick = () => expandPost(index, img.full);
                     galleryContainer.appendChild(thumb);
                 });
+                const leftNav = document.createElement('span');
+                leftNav.classList.add('gallery-nav', 'left');
+                leftNav.textContent = "◄";
                 if (startIdx > 0) {
-                    const leftNav = document.createElement('span');
-                    leftNav.classList.add('gallery-nav', 'left');
-                    leftNav.textContent = "◄";
-                    leftNav.onclick = () => { currentGalleryOffset -= visibleThumbs - 1; expandPost(index, selectedImage, true); };
-                    galleryContainer.appendChild(leftNav);
+                    leftNav.onclick = () => { currentGalleryOffset -= visibleThumbs - 1; expandPost(index, images[startIdx - 1].full, true); };
+                } else {
+                    leftNav.classList.add('disabled');
                 }
+                const rightNav = document.createElement('span');
+                rightNav.classList.add('gallery-nav', 'right');
+                rightNav.textContent = "►";
                 if (endIdx < images.length) {
-                    const rightNav = document.createElement('span');
-                    rightNav.classList.add('gallery-nav', 'right');
-                    rightNav.textContent = "►";
-                    rightNav.onclick = () => { currentGalleryOffset += visibleThumbs - 1; expandPost(index, selectedImage, true); };
-                    galleryContainer.appendChild(rightNav);
+                    rightNav.onclick = () => { currentGalleryOffset += visibleThumbs - 1; expandPost(index, images[startIdx + 1].full, true); };
+                } else {
+                    rightNav.classList.add('disabled');
                 }
+                galleryContainer.appendChild(leftNav);
+                galleryContainer.appendChild(rightNav);
                 content.appendChild(galleryContainer);
-                content.innerHTML += `<img src="${selectedImage || images[0].full}">`;
+                const imgEl = document.createElement('img');
+                imgEl.src = selectedImage || images[0].full;
+                imgEl.onerror = () => { imgEl.replaceWith(createImgPlaceholder()); };
+                content.appendChild(imgEl);
             } else if (post.attachments && post.attachments.length > 0) {
                 const type = getAttachmentType(post.attachments[0].thumb);
                 if (type === 'image') {
-                    content.innerHTML = `<img src="${selectedImage || post.attachments[0].full}">`;
+                    const imgEl = document.createElement('img');
+                    imgEl.src = selectedImage || post.attachments[0].full;
+                    imgEl.onerror = () => { imgEl.replaceWith(createImgPlaceholder()); };
+                    content.appendChild(imgEl);
                 } else if (type === 'video') {
                     content.innerHTML = `<video src="${post.attachments[0].full}" controls autoplay muted>`;
                 }
@@ -511,7 +541,10 @@
             `;
             content.appendChild(commentsContainer);
 
-            document.querySelector(`.post[data-index="${index}"]`).scrollIntoView({ block: 'start' });
+            const postEl = document.querySelector(`.post[data-index="${index}"]`);
+            const headerH = document.querySelector('.header').offsetHeight;
+            const top = postEl.getBoundingClientRect().top + window.pageYOffset - headerH - 10;
+            window.scrollTo({ top, behavior: 'smooth' });
         }
 
         function collapsePost() {
@@ -543,9 +576,10 @@
         }
 
         function searchByTag(tag) {
-            const filteredPosts = posts.filter(post => post.tags && post.tags.includes(tag));
-            pushHistory();
-            renderGrid(filteredPosts);
+            searchCachedPosts('tags:' + tag).then(res => {
+                pushHistory();
+                renderGrid(res);
+            });
         }
 
         function addTag(index) {
@@ -627,14 +661,46 @@
             const form = document.getElementById("submissionForm");
             form.style.display = 'flex';
             form.addEventListener('input', updateSubmissionPreview);
+            newPolls = [];
+            newSchedules = [];
+            document.getElementById('pollList').innerHTML = '';
+            document.getElementById('scheduleList').innerHTML = '';
+        }
+
+        function addPoll() {
+            const q = document.getElementById('pollQuestion').value.trim();
+            const opts = document.getElementById('pollOptions').value.split(',').map(o => o.trim()).filter(Boolean);
+            if (!q || opts.length === 0) return;
+            newPolls.push({ question: q, options: opts, votes: [] });
+            const li = document.createElement('li');
+            li.textContent = q + ' [' + opts.join(', ') + ']';
+            document.getElementById('pollList').appendChild(li);
+            document.getElementById('pollQuestion').value = '';
+            document.getElementById('pollOptions').value = '';
+            updateSubmissionPreview();
+        }
+
+        function addSchedule() {
+            const start = document.getElementById('schedStart').value;
+            if (!start) return;
+            const end = document.getElementById('schedEnd').value;
+            const location = document.getElementById('schedLocation').value;
+            newSchedules.push({ start, end, location });
+            const li = document.createElement('li');
+            li.textContent = start + (end ? ' - ' + end : '') + (location ? ' @ ' + location : '');
+            document.getElementById('scheduleList').appendChild(li);
+            document.getElementById('schedStart').value = '';
+            document.getElementById('schedEnd').value = '';
+            document.getElementById('schedLocation').value = '';
+            updateSubmissionPreview();
         }
 
         function updateSubmissionPreview() {
             const mdText = document.getElementById("mdText").value;
             const headline = document.getElementById("headline").value;
             const attachments = document.getElementById("attachments").value.split(',').filter(Boolean).map(url => ({ thumb: url, full: url }));
-            const polls = document.getElementById("polls").value.split(';').filter(Boolean).map(p => ({ question: p.split(':')[0], options: p.split(':')[1].split(','), votes: [] }));
-            const schedules = document.getElementById("schedules").value.split(';').filter(Boolean).map(s => { const [start, end, location] = s.split(':'); return { start, end, location }; });
+            const polls = newPolls;
+            const schedules = newSchedules;
             const positions = document.getElementById("positions").value.split(';').filter(Boolean).map(p => { const [title, user] = p.split(':'); return { title, user }; });
             const preview = document.getElementById("submissionPreview");
             preview.innerHTML = '';
@@ -670,11 +736,8 @@
                 md_text: document.getElementById("mdText").value,
                 headline: document.getElementById("headline").value,
                 attachments: document.getElementById("attachments").value.split(',').filter(Boolean).map(url => ({ thumb: url, full: url })),
-                polls: document.getElementById("polls").value.split(';').filter(Boolean).map(p => ({ question: p.split(':')[0], options: p.split(':')[1].split(','), votes: [] })),
-                schedules: document.getElementById("schedules").value.split(';').filter(Boolean).map(s => {
-                    const [start, end, location] = s.split(':');
-                    return { start, end, location };
-                }),
+                polls: newPolls,
+                schedules: newSchedules,
                 positions: document.getElementById("positions").value.split(';').filter(Boolean).map(p => {
                     const [title, user] = p.split(':');
                     return { title, user };
@@ -683,7 +746,8 @@
                 user: "CurrentUser",
                 timestamp: new Date().toISOString()
             };
-            posts.push(post);
+            posts.unshift(post);
+            storePost(post);
             document.getElementById("submissionForm").style.display = 'none';
             document.getElementById("imageGrid").style.display = 'grid';
             renderGrid(posts);

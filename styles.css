@@ -147,14 +147,15 @@
         .overlay .sched-tooltip, .overlay .poll-tooltip {
             display: none;
             position: absolute;
-            bottom: 100%;
+            top: 100%;
             left: 0;
             background: #555;
             padding: 5px;
-            font-size: 12px;
+            font-size: 14px;
             border-radius: 3px;
             white-space: pre-wrap;
-            z-index: 10;
+            width: 250px;
+            z-index: 15;
         }
         .overlay span:hover .sched-tooltip, .overlay span:hover .poll-tooltip {
             display: block;
@@ -293,8 +294,17 @@
         }
         .post-content img, .post-content video {
             max-width: 100%;
-            max-height: calc(100vh - 200px); /* Screen height minus header and padding */
+            max-height: calc(100vh - 250px); /* Screen height minus header and padding */
             object-fit: contain;
+        }
+        .image-placeholder {
+            width: 100%;
+            height: calc(100vh - 250px);
+            background: #333;
+            color: #ffcc00;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .post-content .gallery-thumbnails {
             display: flex;
@@ -320,12 +330,17 @@
             color: #ffcc00;
             cursor: pointer;
             padding: 5px;
+            width: 30px;
+            text-align: center;
         }
         .gallery-nav.left {
             left: 0;
         }
         .gallery-nav.right {
             right: 0;
+        }
+        .gallery-nav.disabled {
+            visibility: hidden;
         }
         .post-content .audio-thumbnails {
             display: flex;
@@ -629,4 +644,14 @@
             padding: 5px 10px;
             border-radius: 3px;
             cursor: pointer;
+        }
+        .poll-creator, .schedule-creator {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        #pollList, #scheduleList {
+            list-style: none;
+            padding: 0;
+            margin: 5px 0 0 0;
+            font-size: 14px;
         }

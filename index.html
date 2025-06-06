@@ -37,9 +37,10 @@
         <textarea id="mdText" placeholder="Markdown Text"></textarea>
         <input type="text" id="headline" placeholder="Headline (optional)">
         <input type="file" id="attachments" multiple>
-        <div id="postHistory"></div>
+        <div id="postHistory"><label>Use previous upload as template:</label></div>
 
         <div class="poll-creator">
+            <label>Create Poll</label>
             <input type="text" id="pollQuestion" placeholder="Poll question">
             <div id="pollOptionsContainer"></div>
             <button type="button" onclick="addPollOption()">Add Option</button>
@@ -55,7 +56,12 @@
             <ul id="scheduleList"></ul>
         </div>
 
-        <input type="text" id="positions" placeholder="Positions (e.g., title:user)">
+        <div class="positions-creator">
+            <label>Positions</label>
+            <div id="positionsContainer"></div>
+            <button type="button" onclick="addPosition()">Add Position</button>
+            <ul id="positionsList"></ul>
+        </div>
         <button onclick="submitPost()">Submit Post</button>
     </div>
 
@@ -143,8 +149,9 @@
             return false;
         }
 
-        function getAttachmentType(filename) {
-            const extension = filename.split('.').pop().toLowerCase();
+        function getAttachmentType(att) {
+            let name = typeof att === 'string' ? att : (att.name || att.thumb || att.full || '');
+            const extension = name.split('.').pop().toLowerCase().split('?')[0];
             if (['jpg', 'jpeg', 'webp'].includes(extension)) return 'image';
             if (['mp4', 'webm'].includes(extension)) return 'video';
             if (['mp3', 'ogg'].includes(extension)) return 'audio';
@@ -169,8 +176,8 @@
             return found.length > 0 ? found : null;
         }
 
-        function renderGrid(postsToRender, scrollToIndex = -1) {
-            let grid = document.getElementById("imageGrid");
+        function renderGrid(postsToRender, scrollToIndex = -1, gridEl) {
+            let grid = gridEl || document.getElementById("imageGrid");
             grid.innerHTML = "";
 
             postsToRender.forEach((post, index) => {
@@ -186,7 +193,7 @@
 
                 if (post.attachments && Array.isArray(post.attachments)) {
                     post.attachments.forEach(att => {
-                        let type = getAttachmentType(att.thumb);
+                        let type = getAttachmentType(att);
                         if (type === 'image') images.push(att);
                         else if (type === 'video') videos.push(att);
                         else if (type === 'audio') audios.push(att);
@@ -350,9 +357,9 @@
             const rightArrow = spacer.querySelector('.nav-arrow.right');
 
             const content = spacer.querySelector('.post-content');
-            let images = post.attachments ? post.attachments.filter(att => getAttachmentType(att.thumb) === 'image') : [];
-            let audios = post.attachments ? post.attachments.filter(att => getAttachmentType(att.thumb) === 'audio') : [];
-            let others = post.attachments ? post.attachments.filter(att => getAttachmentType(att.thumb) !== 'image' && getAttachmentType(att.thumb) !== 'audio') : [];
+            let images = post.attachments ? post.attachments.filter(att => getAttachmentType(att) === 'image') : [];
+            let audios = post.attachments ? post.attachments.filter(att => getAttachmentType(att) === 'audio') : [];
+            let others = post.attachments ? post.attachments.filter(att => getAttachmentType(att) !== 'image' && getAttachmentType(att) !== 'audio') : [];
 
             if (audios.length > 0 && checkMDReferences(post.md_text, post.attachments) == null) {
                 const audioContainer = document.createElement('div');
@@ -404,7 +411,7 @@
                 imgEl.onload = finishRender;
                 content.appendChild(imgEl);
             } else if (post.attachments && post.attachments.length > 0) {
-                const type = getAttachmentType(post.attachments[0].thumb);
+                const type = getAttachmentType(post.attachments[0]);
                 if (type === 'image') {
                     const imgEl = document.createElement('img');
                     imgEl.src = selectedImage || post.attachments[0].full;
@@ -471,7 +478,7 @@
                 const attachmentsPreview = document.createElement('div');
                 attachmentsPreview.classList.add('attachments-preview');
                 others.forEach(att => {
-                    if (getAttachmentType(att.thumb) === 'video') {
+                    if (getAttachmentType(att) === 'video') {
                         let vid = document.createElement('video');
                         vid.src = att.full;
                         vid.width = 50;
@@ -496,7 +503,7 @@
             const votingContainer = document.createElement('div');
             votingContainer.classList.add('voting-container');
             votingContainer.innerHTML = `
-                <span class="vote-counter">0</span>
+                <span class="vote-counter">${post.score || 0}</span>
                 <div class="vote-buttons">
                     <span class="super-up" onclick="votePost(${index}, 2)">++</span>
                     <span class="up" onclick="votePost(${index}, 1)">+</span>
@@ -533,15 +540,17 @@
             const tagsContainer = document.createElement('div');
             tagsContainer.classList.add('tag-container');
             post.tags = post.tags || [];
-            post.tags.sort((a,b)=>b.votes-a.votes);
+            post.tags.sort((a,b)=>(b.up-b.down)-(a.up-a.down));
             const showAll = showAllTags[index];
             post.tags.forEach((tagObj,i)=>{
                 const tagElement = document.createElement('div');
                 tagElement.classList.add('tag');
                 if(i>=12 && !showAll) tagElement.classList.add('hidden-tag');
-                tagElement.innerHTML = `<span class="tag-text">${tagObj.name}</span><span class="tag-votes">${tagObj.votes}</span><span class="vote-up">+</span>`;
+                tagElement.innerHTML = `<span class="tag-text">${tagObj.name}</span><span class="tag-votes">${tagObj.up - tagObj.down}</span><span class="vote-up">+</span><span class="vote-down">-</span>`;
+                tagElement.title = "+" + tagObj.up + " / -" + tagObj.down;
                 tagElement.querySelector('.tag-text').onclick = () => searchByTag(tagObj.name);
-                tagElement.querySelector('.vote-up').onclick = () => { tagObj.votes++; post.tags.sort((a,b)=>b.votes-a.votes); updateStoredPost(post); expandPost(index); };
+                tagElement.querySelector('.vote-up').onclick = () => voteTag(post, tagObj.name, 1, index);
+                tagElement.querySelector('.vote-down').onclick = () => voteTag(post, tagObj.name, -1, index);
                 tagsContainer.appendChild(tagElement);
             });
             if(post.tags.length>12 && !showAll){
@@ -603,11 +612,31 @@
         }
 
         function votePost(index, value) {
-            console.log(`Voting post ${index} with value ${value}`);
+            const post = posts[index];
+            post.score = (post.score || 0) + value;
+            updateStoredPost(post);
+            expandPost(index);
         }
 
         function reportPost(index, reason) {
-            console.log(`Reporting post ${index} for: ${reason}`);
+            const post = posts[index];
+            post.flags = post.flags || {};
+            post.flags[reason] = (post.flags[reason] || 0) + 1;
+            updateStoredPost(post);
+        }
+
+        function voteTag(post, name, delta, index) {
+            const key = post.timestamp + ':' + name.toLowerCase();
+            const votes = JSON.parse(localStorage.getItem('tagVotes') || '{}');
+            if (votes[key]) return;
+            votes[key] = delta;
+            localStorage.setItem('tagVotes', JSON.stringify(votes));
+            let t = post.tags.find(t => t.name.toLowerCase() === name.toLowerCase());
+            if (!t) return;
+            if (delta > 0) t.up++; else t.down++;
+            post.tags.sort((a,b)=>(b.up-b.down)-(a.up-a.down));
+            updateStoredPost(post);
+            expandPost(index);
         }
 
         function toggleReportOptions(button) {
@@ -636,9 +665,9 @@
                 if (!val) return;
                 const post = posts[index];
                 let existing = post.tags.find(t => t.name.toLowerCase() === val.toLowerCase());
-                if (existing) existing.votes++;
-                else post.tags.push({ name: val, votes: 1 });
-                post.tags.sort((a,b)=>b.votes-a.votes);
+                if (existing) existing.up++;
+                else post.tags.push({ name: val, up: 1, down: 0 });
+                post.tags.sort((a,b)=>(b.up-b.down)-(a.up-a.down));
                 updateStoredPost(post);
                 expandPost(index);
             };
@@ -710,15 +739,23 @@
             }
         }
 
-        function adjustNavArrows(container) {
+       function adjustNavArrows(container) {
             const main = container.querySelector('.post-content img, .post-content video, .post-content audio, .post-content .audio-button, .post-content .image-placeholder, .post-content p');
             if (!main) return;
-            const offset = main.offsetTop + main.offsetHeight / 2;
-            container.querySelectorAll('.nav-arrow').forEach(ar => ar.style.top = offset + 'px');
+            const compute = () => {
+                const offset = main.offsetTop + main.offsetHeight / 2;
+                container.querySelectorAll('.nav-arrow').forEach(ar => ar.style.top = offset + 'px');
+            };
+            compute();
+            if (main.tagName.toLowerCase() === 'video') {
+                main.onloadedmetadata = compute;
+            } else if (main.tagName.toLowerCase() === 'img') {
+                if (!main.complete) main.onload = compute;
+            }
         }
 
         function isFormDirty() {
-            return document.getElementById('mdText').value || document.getElementById('headline').value || document.getElementById('attachments').files.length || newPolls.length || newSchedules.length || document.getElementById('positions').value;
+            return document.getElementById('mdText').value || document.getElementById('headline').value || document.getElementById('attachments').files.length || newPolls.length || newSchedules.length || document.querySelectorAll('#positionsContainer div').length;
         }
 
         let pendingDiscard = null;
@@ -774,7 +811,7 @@
             document.getElementById('mdText').value = '';
             document.getElementById('headline').value = '';
             document.getElementById('attachments').value = '';
-            document.getElementById('positions').value = '';
+            document.getElementById('positionsContainer').innerHTML = '';
             creatingPost = true;
             postHistory = getStoredPosts().slice(0,6);
             updateHistoryList();
@@ -828,20 +865,48 @@
             updateSubmissionPreview();
         }
 
+        function addPosition() {
+            const container = document.getElementById('positionsContainer');
+            const div = document.createElement('div');
+            const title = document.createElement('input');
+            title.type = 'text';
+            title.placeholder = 'title';
+            const user = document.createElement('input');
+            user.type = 'text';
+            user.placeholder = 'user';
+            const rm = document.createElement('span');
+            rm.textContent = '✖';
+            rm.style.cursor = 'pointer';
+            rm.onclick = () => div.remove();
+            div.appendChild(title);
+            div.appendChild(user);
+            div.appendChild(rm);
+            container.appendChild(div);
+        }
+
         function updateSubmissionPreview() {
             const mdText = document.getElementById("mdText").value;
             const headline = document.getElementById("headline").value;
-            const attachments = Array.from(document.getElementById("attachments").files).map(f => { const url = URL.createObjectURL(f); return { thumb: url, full: url }; });
+            const attachments = Array.from(document.getElementById("attachments").files).map(f => {
+                const url = URL.createObjectURL(f);
+                return { thumb: url, full: url, name: f.name };
+            });
             const polls = newPolls;
             const schedules = newSchedules;
-            const positions = document.getElementById("positions").value.split(';').filter(Boolean).map(p => { const [title, user] = p.split(':'); return { title, user }; });
+            const positions = Array.from(document.querySelectorAll('#positionsContainer div')).map(d => {
+                const inputs = d.querySelectorAll('input');
+                const title = inputs[0].value.trim();
+                const user = inputs[1].value.trim();
+                if (!title) return null;
+                return { title, user };
+            }).filter(Boolean);
             const preview = document.getElementById("submissionPreview");
             preview.innerHTML = '';
 
-            const post = { md_text: mdText, headline, attachments, polls, schedules, positions };
+            const post = { md_text: mdText, headline, attachments, polls, schedules, positions, tags: [] };
 
             if (attachments.length > 0 && checkMDReferences(mdText, attachments) == null) {
-                const type = getAttachmentType(attachments[0].thumb);
+                const type = getAttachmentType(attachments[0]);
                 if (type === 'image') {
                     preview.innerHTML = `<img src="${attachments[0].thumb}" style="width: 100%; height: 100%; object-fit: cover;">`;
                 } else if (type === 'video') {
@@ -856,8 +921,8 @@
 
             let overlay = document.createElement('div');
             overlay.classList.add('overlay');
-            if (attachments.some(att => getAttachmentType(att.thumb) === 'video')) overlay.innerHTML += "🎥";
-            if (attachments.some(att => getAttachmentType(att.thumb) === 'audio')) overlay.innerHTML += "🎵";
+            if (attachments.some(att => getAttachmentType(att) === 'video')) overlay.innerHTML += "🎥";
+            if (attachments.some(att => getAttachmentType(att) === 'audio')) overlay.innerHTML += "🎵";
             if (polls.length > 0) overlay.innerHTML += "📊".repeat(polls.length);
             if (schedules.length > 0) overlay.innerHTML += "📅";
             if (positions.length > 0) overlay.innerHTML += "💼";
@@ -868,13 +933,16 @@
             const post = {
                 md_text: document.getElementById("mdText").value,
                 headline: document.getElementById("headline").value,
-                attachments: Array.from(document.getElementById("attachments").files).map(f => { const url = URL.createObjectURL(f); return { thumb: url, full: url }; }),
+                attachments: Array.from(document.getElementById("attachments").files).map(f => { const url = URL.createObjectURL(f); return { thumb: url, full: url, name: f.name }; }),
                 polls: newPolls,
                 schedules: newSchedules,
-                positions: document.getElementById("positions").value.split(';').filter(Boolean).map(p => {
-                    const [title, user] = p.split(':');
+                positions: Array.from(document.querySelectorAll('#positionsContainer div')).map(d => {
+                    const inputs = d.querySelectorAll('input');
+                    const title = inputs[0].value.trim();
+                    const user = inputs[1].value.trim();
+                    if (!title) return null;
                     return { title, user };
-                }),
+                }).filter(Boolean),
                 tags: [],
                 user: "CurrentUser",
                 timestamp: new Date().toISOString()
@@ -890,7 +958,7 @@
             document.getElementById('mdText').value='';
             document.getElementById('headline').value='';
             document.getElementById('attachments').value='';
-            document.getElementById('positions').value='';
+            document.getElementById('positionsContainer').innerHTML='';
             document.getElementById('pollList').innerHTML='';
             document.getElementById('scheduleList').innerHTML='';
             document.getElementById('pollOptionsContainer').innerHTML='';

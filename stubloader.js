@@ -62,15 +62,20 @@ function saveStoredPosts(posts) {
 function normalizeTags(post) {
     if (!post.tags) return post;
     post.tags = post.tags.map(t => {
-        if (typeof t === 'string') return { name: t, votes: 1 };
-        if (t.votes === undefined) t.votes = 1;
+        if (typeof t === 'string') return { name: t, up: 1, down: 0 };
+        if (t.up === undefined && t.votes !== undefined) t.up = t.votes;
+        if (t.up === undefined) t.up = 1;
+        if (t.down === undefined) t.down = 0;
+        delete t.votes;
         return t;
-    }).sort((a, b) => b.votes - a.votes);
+    }).sort((a, b) => (b.up - b.down) - (a.up - a.down));
     return post;
 }
 
 function loadExamplePosts() {
-    const all = [...getStoredPosts(), ...examplePosts];
+    const updates = JSON.parse(localStorage.getItem('exampleUpdates') || '{}');
+    const ex = examplePosts.map(p => updates[p.timestamp] ? Object.assign({}, p, updates[p.timestamp]) : p);
+    const all = [...getStoredPosts(), ...ex];
     return Promise.resolve(all.map(p => normalizeTags({ ...p })));
 }
 
@@ -86,6 +91,10 @@ function updateStoredPost(post) {
     if (idx !== -1) {
         stored[idx] = post;
         saveStoredPosts(stored);
+    } else {
+        const updates = JSON.parse(localStorage.getItem('exampleUpdates') || '{}');
+        updates[post.timestamp] = post;
+        localStorage.setItem('exampleUpdates', JSON.stringify(updates));
     }
 }
 

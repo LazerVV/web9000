@@ -92,7 +92,7 @@
         .post {
             background: #333;
             border-radius: 0px;
-            overflow: hidden;
+            overflow: visible;
             width: 150px;
             height: 150px;
             display: flex;
@@ -536,10 +536,12 @@
         .more-tags { color: #ffcc00; cursor: pointer; }
         .new-tag-input {
             background: #333;
-            border: none;
+            border: 1px solid #ffcc00;
             color: white;
-            padding: 2px 5px;
-            border-radius: 3px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 14px;
+            width: 80px;
         }
         .post-details {
             font-size: 12px;
@@ -653,6 +655,7 @@
             border-radius: 3px;
             width: 100%;
             box-sizing: border-box;
+            margin-bottom: 15px;
         }
         .submission-form button {
             background: #ffcc00;
@@ -664,8 +667,25 @@
         }
         .poll-creator, .schedule-creator {
             width: 100%;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
+        .positions-creator {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .positions-creator div {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+        .positions-creator input {
+            background: #333;
+            border: none;
+            color: white;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .positions-creator span { cursor: pointer; }
         #pollList, #scheduleList {
             list-style: none;
             padding: 0;
@@ -673,30 +693,49 @@
             font-size: 14px;
         }
 
+        #postHistory {
+            width: 100%;
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        #postHistory label {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        #postHistory button {
+            background: #ffcc00;
+            color: black;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
         #scrollSpacer {
             height: 100vh;
             width: 100%;
         }
 
-        .post.expanded-thumb::before,
-        .post.expanded-thumb::after {
+        .post.expanded-thumb::before {
             content: '';
             position: absolute;
-            width: 0;
-            height: 0;
-            border-style: solid;
-        }
-        .post.expanded-thumb::before {
-            border-width: 0 30px 30px 0;
-            border-color: transparent #ffcc00 transparent transparent;
             top: 0;
             left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(135deg, #111 0, #111 5px, transparent 5px) top left,
+                linear-gradient(45deg, #111 0, #111 5px, transparent 5px) top right,
+                linear-gradient(225deg, #111 0, #111 5px, transparent 5px) bottom left,
+                linear-gradient(315deg, #111 0, #111 5px, transparent 5px) bottom right;
+            background-size: 5px 5px;
+            background-repeat: no-repeat;
         }
         .post.expanded-thumb::after {
-            border-width: 30px 0 0 30px;
-            border-color: transparent transparent #ffcc00 transparent;
-            bottom: 0;
-            right: 0;
+            content: none;
         }
 
         #discardOverlay {

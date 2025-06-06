@@ -31,22 +31,25 @@
         <div class="join-network" onclick="joinNetwork()">Join Network</div>
     </div>
     <div class="grid" id="imageGrid"></div>
+    <div id="scrollSpacer"></div>
     <div class="submission-form" id="submissionForm">
         <div class="submission-preview" id="submissionPreview"></div>
         <textarea id="mdText" placeholder="Markdown Text"></textarea>
         <input type="text" id="headline" placeholder="Headline (optional)">
-        <input type="text" id="attachments" placeholder="Attachments (comma-separated full URLs)">
+        <input type="file" id="attachments" multiple>
+        <div id="postHistory"></div>
 
         <div class="poll-creator">
             <input type="text" id="pollQuestion" placeholder="Poll question">
-            <input type="text" id="pollOptions" placeholder="Options comma separated">
+            <div id="pollOptionsContainer"></div>
+            <button type="button" onclick="addPollOption()">Add Option</button>
             <button type="button" onclick="addPoll()">Add Poll</button>
             <ul id="pollList"></ul>
         </div>
 
         <div class="schedule-creator">
-            <input type="datetime-local" id="schedStart">
-            <input type="datetime-local" id="schedEnd">
+            <label>Start</label><input type="datetime-local" id="schedStart">
+            <label>End</label><input type="datetime-local" id="schedEnd">
             <input type="text" id="schedLocation" placeholder="Location">
             <button type="button" onclick="addSchedule()">Add Schedule</button>
             <ul id="scheduleList"></ul>
@@ -71,8 +74,11 @@
         let newPolls = [];
         let newSchedules = [];
         let showAllTags = {};
+        let creatingPost = false;
+        let postHistory = [];
 
         function sortPosts(type) {
+            if (creatingPost && isFormDirty()) return showDiscardDialog(() => { creatingPost=false; sortPosts(type); });
             console.log("Sorting by: ", type);
             pushHistory();
             renderGrid(posts);
@@ -82,7 +88,8 @@
             const query = document.getElementById("searchInput").value;
             searchCachedPosts(query).then(res => {
                 pushHistory();
-                renderGrid(res);
+                posts = res;
+                renderGrid(posts);
             });
         }
 
@@ -100,6 +107,7 @@
         }
 
         function goHome() {
+            if (creatingPost && isFormDirty()) return showDiscardDialog(() => { creatingPost=false; goHome(); });
             pushHistory();
             renderGrid(posts);
             collapsePost();
@@ -313,10 +321,11 @@
             }
         }
 
-        function expandPost(index, selectedImage = null, showGallery = false) {
-            collapsePost();
-            selectedPostIndex = index;
-            const post = posts[index];
+       function expandPost(index, selectedImage = null, showGallery = false) {
+           collapsePost();
+           selectedPostIndex = index;
+           const post = posts[index];
+            document.querySelector(`.post[data-index="${index}"]`).classList.add('expanded-thumb');
             const rowIndex = Math.floor(index / postsPerRow);
             const spacer = document.querySelector(`.post-container[data-row="${rowIndex + 1}"]`);
             spacer.classList.add('expanded');
@@ -569,11 +578,12 @@
             window.scrollTo({ top, behavior: 'smooth' });
         }
 
-        function collapsePost() {
-            document.querySelectorAll('.post-container.expanded').forEach(container => {
-                container.classList.remove('expanded');
-                container.style.display = 'none';
-            });
+       function collapsePost() {
+           document.querySelectorAll('.post-container.expanded').forEach(container => {
+               container.classList.remove('expanded');
+               container.style.display = 'none';
+           });
+            document.querySelectorAll('.post.expanded-thumb').forEach(el => el.classList.remove('expanded-thumb'));
             selectedPostIndex = -1;
             currentGalleryOffset = 0;
         }
@@ -693,13 +703,55 @@
         }
 
         function adjustNavArrows(container) {
-            const main = container.querySelector('.post-content img, .post-content video, .post-content .image-placeholder, .post-content p');
+            const main = container.querySelector('.post-content img, .post-content video, .post-content audio, .post-content .audio-button, .post-content .image-placeholder, .post-content p');
             if (!main) return;
             const offset = main.offsetTop + main.offsetHeight / 2;
             container.querySelectorAll('.nav-arrow').forEach(ar => ar.style.top = offset + 'px');
         }
 
-        function showSubmissionForm() {
+        function isFormDirty() {
+            return document.getElementById('mdText').value || document.getElementById('headline').value || document.getElementById('attachments').files.length || newPolls.length || newSchedules.length || document.getElementById('positions').value;
+        }
+
+        let pendingDiscard = null;
+        function showDiscardDialog(cb) {
+            pendingDiscard = cb;
+            document.getElementById('discardOverlay').style.display = 'flex';
+        }
+
+        function confirmDiscard(yes) {
+            document.getElementById('discardOverlay').style.display = 'none';
+            if (yes && pendingDiscard) {
+                document.getElementById('submissionForm').style.display = 'none';
+                document.getElementById('imageGrid').style.display = 'grid';
+                pendingDiscard();
+            }
+            creatingPost = false;
+            pendingDiscard = null;
+        }
+
+        function updateHistoryList() {
+            const hist = document.getElementById('postHistory');
+            hist.innerHTML = '';
+            postHistory.forEach(p => {
+                const btn = document.createElement('button');
+                btn.textContent = p.headline || (p.md_text ? p.md_text.substring(0,20) : 'post');
+                btn.onclick = () => {
+                    document.getElementById('mdText').value = p.md_text || '';
+                    document.getElementById('headline').value = p.headline || '';
+                    newPolls = p.polls || [];
+                    newSchedules = p.schedules || [];
+                    document.getElementById('pollList').innerHTML = '';
+                    newPolls.forEach(pl=>{ let li=document.createElement('li'); li.textContent=pl.question; document.getElementById('pollList').appendChild(li); });
+                    document.getElementById('scheduleList').innerHTML='';
+                    newSchedules.forEach(sc=>{ let li=document.createElement('li'); li.textContent=sc.start; document.getElementById('scheduleList').appendChild(li); });
+                    updateSubmissionPreview();
+                };
+                hist.appendChild(btn);
+            });
+        }
+
+       function showSubmissionForm() {
             const grid = document.getElementById("imageGrid");
             grid.style.display = 'none';
             const form = document.getElementById("submissionForm");
@@ -709,19 +761,42 @@
             newSchedules = [];
             document.getElementById('pollList').innerHTML = '';
             document.getElementById('scheduleList').innerHTML = '';
+            document.getElementById('pollOptionsContainer').innerHTML = '';
+            document.getElementById('mdText').value = '';
+            document.getElementById('headline').value = '';
+            document.getElementById('attachments').value = '';
+            document.getElementById('positions').value = '';
+            creatingPost = true;
+            postHistory = getStoredPosts().slice(0,6);
+            updateHistoryList();
+            updateSubmissionPreview();
         }
 
-        function addPoll() {
+       function addPoll() {
             const q = document.getElementById('pollQuestion').value.trim();
-            const opts = document.getElementById('pollOptions').value.split(',').map(o => o.trim()).filter(Boolean);
+            const opts = Array.from(document.querySelectorAll('#pollOptionsContainer input')).map(i => i.value.trim()).filter(Boolean);
             if (!q || opts.length < 2) return;
             newPolls.push({ question: q, options: opts, votes: [] });
             const li = document.createElement('li');
             li.textContent = q + ' [' + opts.join(', ') + ']';
             document.getElementById('pollList').appendChild(li);
             document.getElementById('pollQuestion').value = '';
-            document.getElementById('pollOptions').value = '';
+            document.getElementById('pollOptionsContainer').innerHTML = '';
             updateSubmissionPreview();
+        }
+
+        function addPollOption() {
+            const container = document.getElementById('pollOptionsContainer');
+            const div = document.createElement('div');
+            const input = document.createElement('input');
+            input.type = 'text';
+            const rm = document.createElement('span');
+            rm.textContent = '✖';
+            rm.style.cursor = 'pointer';
+            rm.onclick = () => div.remove();
+            div.appendChild(input);
+            div.appendChild(rm);
+            container.appendChild(div);
         }
 
         function addSchedule() {
@@ -742,7 +817,7 @@
         function updateSubmissionPreview() {
             const mdText = document.getElementById("mdText").value;
             const headline = document.getElementById("headline").value;
-            const attachments = document.getElementById("attachments").value.split(',').filter(Boolean).map(url => ({ thumb: url, full: url }));
+            const attachments = Array.from(document.getElementById("attachments").files).map(f => { const url = URL.createObjectURL(f); return { thumb: url, full: url }; });
             const polls = newPolls;
             const schedules = newSchedules;
             const positions = document.getElementById("positions").value.split(';').filter(Boolean).map(p => { const [title, user] = p.split(':'); return { title, user }; });
@@ -779,7 +854,7 @@
             const post = {
                 md_text: document.getElementById("mdText").value,
                 headline: document.getElementById("headline").value,
-                attachments: document.getElementById("attachments").value.split(',').filter(Boolean).map(url => ({ thumb: url, full: url })),
+                attachments: Array.from(document.getElementById("attachments").files).map(f => { const url = URL.createObjectURL(f); return { thumb: url, full: url }; }),
                 polls: newPolls,
                 schedules: newSchedules,
                 positions: document.getElementById("positions").value.split(';').filter(Boolean).map(p => {
@@ -792,11 +867,21 @@
             };
             if (!post.md_text && post.attachments.length === 0 && post.polls.length === 0 && post.schedules.length === 0) return;
             if (post.polls.some(p => p.options.length < 2)) return;
-            posts.unshift(post);
-            storePost(post);
+           posts.unshift(post);
+           storePost(post);
+            creatingPost = false;
             document.getElementById("submissionForm").style.display = 'none';
             document.getElementById("imageGrid").style.display = 'grid';
             renderGrid(posts);
+            document.getElementById('mdText').value='';
+            document.getElementById('headline').value='';
+            document.getElementById('attachments').value='';
+            document.getElementById('positions').value='';
+            document.getElementById('pollList').innerHTML='';
+            document.getElementById('scheduleList').innerHTML='';
+            document.getElementById('pollOptionsContainer').innerHTML='';
+            postHistory = getStoredPosts().slice(0,6);
+            updateHistoryList();
         }
         document.addEventListener("DOMContentLoaded", () => {
             loadExamplePosts().then(data => {
@@ -843,5 +928,12 @@
             });
         });
     </script>
+    <div id="discardOverlay">
+        <div class="dialog">
+            <p>Discard current post?</p>
+            <button onclick="confirmDiscard(true)">Yes</button>
+            <button onclick="confirmDiscard(false)">No</button>
+        </div>
+    </div>
 </body>
 </html>

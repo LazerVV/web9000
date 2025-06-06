@@ -284,6 +284,7 @@
             align-items: center;
             box-sizing: border-box;
             grid-column: 1 / -1;
+            position: relative;
         }
         .post-content {
             max-width: 800px;
@@ -642,6 +643,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
         }
         .submission-form input, .submission-form textarea {
             background: #333;
@@ -669,4 +671,56 @@
             padding: 0;
             margin: 5px 0 0 0;
             font-size: 14px;
+        }
+
+        #scrollSpacer {
+            height: 100vh;
+            width: 100%;
+        }
+
+        .post.expanded-thumb::before,
+        .post.expanded-thumb::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+        }
+        .post.expanded-thumb::before {
+            border-width: 0 30px 30px 0;
+            border-color: transparent #ffcc00 transparent transparent;
+            top: 0;
+            left: 0;
+        }
+        .post.expanded-thumb::after {
+            border-width: 30px 0 0 30px;
+            border-color: transparent transparent #ffcc00 transparent;
+            bottom: 0;
+            right: 0;
+        }
+
+        #discardOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+        }
+        #discardOverlay .dialog {
+            background: #222;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        #discardOverlay button {
+            margin: 5px;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
         }

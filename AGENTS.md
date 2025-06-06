@@ -10,19 +10,19 @@ WEB9000 is a fully decentralized, serverless board system designed to replace tr
 
 ## Core Features
 
-Serverless & Decentralized – Built on GunDB for distributed storage and IPFS for hosting images and other media.
-No Predefined Post Types – Every post is a flexible Markdown (MD) file containing lists of content (e.g., images, links, schedules, polls). The frontend dynamically determines post type based on populated data.
+* Serverless & Decentralized – Built on GunDB for distributed storage and IPFS for hosting images and other media.
+* No Predefined Post Types – Every post is a flexible Markdown (MD) file containing lists of content (e.g., images, links, schedules, polls). The frontend dynamically determines post type based on populated data.
 Federated Governance – Users self-organize into clans and guilds and coalitions, subscribing to optional governance rules, moderation tools, and spam filtering.
-Multimodal Content Grid – Posts can contain images, audio, 3D files, documents, polls, events, projects, and discussions, intelligently rendered inside a content grid.
-Autonomous Spaces – Some boards are democratic (vote-based moderation), while others are autocratic (single-user controlled, e.g., blogs or stores).
-No Website Styling – The board exists as a pure content grid, where presentation is determined by post metadata and content population rather than fixed UI themes.
-No Servers - Web9000 can be served locally (all content is pulled via GunDB and IPFS) and hosting it on a live website doesn't pull content from that website (other than Web9000 code) the same way
+* Multimodal Content Grid – Posts can contain images, audio, 3D files, documents, polls, events, projects, and discussions, intelligently rendered inside a content grid.
+* Autonomous Spaces – Some boards are democratic (vote-based moderation), while others are autocratic (single-user controlled, e.g., blogs or stores).
+* No Website Styling – The board exists as a pure content grid, where presentation is determined by post metadata and content population rather than fixed UI themes.
+* No Servers - Web9000 can be served locally (all content is pulled via GunDB and IPFS) and hosting it on a live website doesn't pull content from that website (other than Web9000 code) the same way
 
 ### Intelligent Content Rendering in grid view (initial idea):
-If a post has multiple images, the first image is displayed with micro-thumbnails on the right.
-If a post has audio, a play button is overlayed.
-If a post has no media, its Markdown text is previewed in the grid.
-Icons for polls, events, documents, or funding appear dynamically with hover info
+* If a post has multiple images, the first image is displayed with micro-thumbnails on the right.
+* If a post has audio, a play button is overlayed.
+* If a post has no media, its Markdown text is previewed in the grid.
+* Icons for polls, events, documents, or funding appear dynamically with hover info
 
 ### Classic list-based content rendering:
 A list with single rows and a smaller 30px or so media content preview on left is displayed to prioritize text (similar to reddit old layout, but with direct text preview)
@@ -33,17 +33,17 @@ Extendable for Future Features – While blockchain integration is currently avo
 ## Use Cases
 WEB9000 is designed to be infinitely flexible, supporting:
 
-Classic Image Boards – Meme culture, artwork, anonymous discussions.
-Decentralized Marketplaces – Merchant guild-run commerce, bartering, NFT-style assets.
-Forums & Community Hubs – Special interest groups, discussions, voting-based moderation.
-Crowdfunding & Project Backing – Users can pledge cryptocurrency, man-hours or compute time to ideas that grow into projects.
-Job Listings & Classifieds – Decentralized hiring and local exchange networks.
-Meetups & Event Organizing – Public and private scheduling, RSVP, location-based events.
-Decentralized News & Blogs – Self-hosted, federated blogging without censorship.
-Science & Research Collaboration – Open-source academic publishing and funding.
-Crisis Response & Mutual Aid – Disaster relief coordination, peer-to-peer financial help.
-P2P Governance & Lawmaking – DAO-based rule-making and arbitration courts.
-facilitates direct bitcoin lightning payments
+* Classic Image Boards – Meme culture, artwork, anonymous discussions.
+* Decentralized Marketplaces – Merchant guild-run commerce, bartering, NFT-style assets.
+* Forums & Community Hubs – Special interest groups, discussions, voting-based moderation.
+* Crowdfunding & Project Backing – Users can pledge cryptocurrency, man-hours or compute time to ideas that grow into projects.
+* Job Listings & Classifieds – Decentralized hiring and local exchange networks.
+* Meetups & Event Organizing – Public and private scheduling, RSVP, location-based events.
+* Decentralized News & Blogs – Self-hosted, federated blogging without censorship.
+* Science & Research Collaboration – Open-source academic publishing and funding.
+* Crisis Response & Mutual Aid – Disaster relief coordination, peer-to-peer financial help.
+* P2P Governance & Lawmaking – DAO-based rule-making and arbitration courts.
+* facilitates direct bitcoin lightning payments
 
 ## Current Development
 

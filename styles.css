@@ -371,6 +371,7 @@
             display: flex;
             justify-content: space-between;
             margin-top: 5px;
+            border-bottom: 1px solid #444;
         }
         .post-content .schedules {
             margin-top: 10px;
@@ -517,6 +518,12 @@
             align-items: center;
             gap: 5px;
         }
+        .tag-votes {
+            font-size: 12px;
+        }
+        .hidden-tag {
+            display: none;
+        }
         .tag .vote-up { color: #ffcc00; cursor: pointer; }
         .tag .vote-down { color: #ff6666; cursor: pointer; }
         .tag-container .add-tag {
@@ -524,6 +531,14 @@
             color: #ffcc00;
             cursor: pointer;
             font-size: 14px;
+        }
+        .more-tags { color: #ffcc00; cursor: pointer; }
+        .new-tag-input {
+            background: #333;
+            border: none;
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
         }
         .post-details {
             font-size: 12px;

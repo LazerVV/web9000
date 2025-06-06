@@ -59,14 +59,34 @@ function saveStoredPosts(posts) {
     localStorage.setItem('userPosts', JSON.stringify(posts));
 }
 
+function normalizeTags(post) {
+    if (!post.tags) return post;
+    post.tags = post.tags.map(t => {
+        if (typeof t === 'string') return { name: t, votes: 1 };
+        if (t.votes === undefined) t.votes = 1;
+        return t;
+    }).sort((a, b) => b.votes - a.votes);
+    return post;
+}
+
 function loadExamplePosts() {
-    return Promise.resolve([...getStoredPosts(), ...examplePosts]);
+    const all = [...getStoredPosts(), ...examplePosts];
+    return Promise.resolve(all.map(p => normalizeTags({ ...p })));
 }
 
 function storePost(post) {
     const stored = getStoredPosts();
     stored.unshift(post);
     saveStoredPosts(stored);
+}
+
+function updateStoredPost(post) {
+    const stored = getStoredPosts();
+    const idx = stored.findIndex(p => p.timestamp === post.timestamp);
+    if (idx !== -1) {
+        stored[idx] = post;
+        saveStoredPosts(stored);
+    }
 }
 
 function searchCachedPosts(query) {
@@ -86,7 +106,7 @@ function searchCachedPosts(query) {
     });
     text = text.join(' ');
 
-    return Promise.resolve(all.filter(p => {
+    return Promise.resolve(all.map(p => normalizeTags({ ...p })).filter(p => {
         let ok = true;
         if (type === 'event') ok = ok && p.schedules && p.schedules.length > 0;
         if (type === 'media') ok = ok && p.attachments && p.attachments.length > 0;
@@ -94,7 +114,7 @@ function searchCachedPosts(query) {
         if (type === 'text') ok = ok && (!p.attachments || p.attachments.length === 0);
         if (from) ok = ok && new Date(p.timestamp) >= new Date(from);
         if (to) ok = ok && new Date(p.timestamp) <= new Date(to);
-        if (tags.length) ok = ok && tags.every(t => (p.tags || []).map(x => x.toLowerCase()).includes(t));
+        if (tags.length) ok = ok && tags.every(t => (p.tags || []).map(x => (typeof x === 'string' ? x : x.name).toLowerCase()).includes(t));
         if (text) {
             const q = text.toLowerCase();
             ok = ok && ((p.md_text && p.md_text.toLowerCase().includes(q)) ||

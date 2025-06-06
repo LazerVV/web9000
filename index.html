@@ -70,6 +70,7 @@
         let currentGalleryOffset = 0;
         let newPolls = [];
         let newSchedules = [];
+        let showAllTags = {};
 
         function sortPosts(type) {
             console.log("Sorting by: ", type);
@@ -328,6 +329,9 @@
                 <span class="nav-arrow right" onclick="navigatePost(1)">►</span>
             `;
 
+            const leftArrow = spacer.querySelector('.nav-arrow.left');
+            const rightArrow = spacer.querySelector('.nav-arrow.right');
+
             const content = spacer.querySelector('.post-content');
             let images = post.attachments ? post.attachments.filter(att => getAttachmentType(att.thumb) === 'image') : [];
             let audios = post.attachments ? post.attachments.filter(att => getAttachmentType(att.thumb) === 'audio') : [];
@@ -380,6 +384,7 @@
                 const imgEl = document.createElement('img');
                 imgEl.src = selectedImage || images[0].full;
                 imgEl.onerror = () => { imgEl.replaceWith(createImgPlaceholder()); };
+                imgEl.onload = finishRender;
                 content.appendChild(imgEl);
             } else if (post.attachments && post.attachments.length > 0) {
                 const type = getAttachmentType(post.attachments[0].thumb);
@@ -387,12 +392,15 @@
                     const imgEl = document.createElement('img');
                     imgEl.src = selectedImage || post.attachments[0].full;
                     imgEl.onerror = () => { imgEl.replaceWith(createImgPlaceholder()); };
+                    imgEl.onload = finishRender;
                     content.appendChild(imgEl);
                 } else if (type === 'video') {
                     content.innerHTML = `<video src="${post.attachments[0].full}" controls autoplay muted>`;
+                    finishRender();
                 }
             } else {
                 content.innerHTML = `<p>${post.md_text}</p>`;
+                finishRender();
             }
 
             if (post.md_text && (images.length <= 1 || checkMDReferences(post.md_text, post.attachments))) {
@@ -415,8 +423,14 @@
                     poll.options.forEach((opt, i) => {
                         let optDiv = document.createElement('div');
                         optDiv.classList.add('poll-option');
-                        optDiv.innerHTML = `${opt} <span>${poll.votes ? poll.votes[i] : 0}</span>`;
-                        optDiv.onclick = () => console.log(`Voted ${opt} for ${poll.question}`);
+                        const votes = poll.votes ? poll.votes[i] || 0 : 0;
+                        optDiv.innerHTML = `${opt} <span>${votes}</span>`;
+                        optDiv.onclick = () => {
+                            poll.votes = poll.votes || Array(poll.options.length).fill(0);
+                            poll.votes[i]++;
+                            updateStoredPost(post);
+                            expandPost(index);
+                        };
                         pollDiv.appendChild(optDiv);
                     });
                     pollsContainer.appendChild(pollDiv);
@@ -453,6 +467,10 @@
                     }
                 });
                 content.appendChild(attachmentsPreview);
+            }
+
+            function finishRender() {
+                adjustNavArrows(spacer);
             }
 
             const interactionContainer = document.createElement('div');
@@ -497,25 +515,29 @@
 
             const tagsContainer = document.createElement('div');
             tagsContainer.classList.add('tag-container');
-            const displayedTags = (post.tags || []).slice(0, 12);
-            displayedTags.forEach(tag => {
+            post.tags = post.tags || [];
+            post.tags.sort((a,b)=>b.votes-a.votes);
+            const showAll = showAllTags[index];
+            post.tags.forEach((tagObj,i)=>{
                 const tagElement = document.createElement('div');
                 tagElement.classList.add('tag');
-                tagElement.innerHTML = `<span class="tag-text">${tag}</span><span class="vote-up">+</span><span class="vote-down">-</span>`;
-                tagElement.querySelector('.tag-text').onclick = () => searchByTag(tag);
-                tagElement.querySelector('.vote-up').onclick = () => console.log(`Upvote tag: ${tag}`);
-                tagElement.querySelector('.vote-down').onclick = () => console.log(`Downvote tag: ${tag}`);
+                if(i>=12 && !showAll) tagElement.classList.add('hidden-tag');
+                tagElement.innerHTML = `<span class="tag-text">${tagObj.name}</span><span class="tag-votes">${tagObj.votes}</span><span class="vote-up">+</span>`;
+                tagElement.querySelector('.tag-text').onclick = () => searchByTag(tagObj.name);
+                tagElement.querySelector('.vote-up').onclick = () => { tagObj.votes++; post.tags.sort((a,b)=>b.votes-a.votes); updateStoredPost(post); expandPost(index); };
                 tagsContainer.appendChild(tagElement);
             });
-            if ((post.tags || []).length > 12) {
-                const moreTags = document.createElement('span');
-                moreTags.textContent = `${post.tags.length - 12} more tags...`;
+            if(post.tags.length>12 && !showAll){
+                const moreTags=document.createElement('span');
+                moreTags.classList.add('more-tags');
+                moreTags.textContent='show more...';
+                moreTags.onclick=()=>{ showAllTags[index]=true; expandPost(index); };
                 tagsContainer.appendChild(moreTags);
             }
-            const addTagSpan = document.createElement('span');
+            const addTagSpan=document.createElement('span');
             addTagSpan.classList.add('add-tag');
-            addTagSpan.textContent = "add tag...";
-            addTagSpan.onclick = () => addTag(index);
+            addTagSpan.textContent='add tag...';
+            addTagSpan.onclick=()=>addTag(index);
             tagsContainer.appendChild(addTagSpan);
             interactionContainer.appendChild(tagsContainer);
 
@@ -583,12 +605,27 @@
         }
 
         function addTag(index) {
-            const newTag = prompt("Enter new tag:");
-            if (newTag) {
-                posts[index].tags = posts[index].tags || [];
-                posts[index].tags.push(newTag);
+            const container = document.querySelector('.post-container.expanded .tag-container');
+            if (!container) return;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.classList.add('new-tag-input');
+            container.insertBefore(input, container.querySelector('.add-tag'));
+            input.focus();
+            const commit = () => {
+                const val = input.value.trim();
+                input.remove();
+                if (!val) return;
+                const post = posts[index];
+                let existing = post.tags.find(t => t.name.toLowerCase() === val.toLowerCase());
+                if (existing) existing.votes++;
+                else post.tags.push({ name: val, votes: 1 });
+                post.tags.sort((a,b)=>b.votes-a.votes);
+                updateStoredPost(post);
                 expandPost(index);
-            }
+            };
+            input.addEventListener('blur', commit);
+            input.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); commit(); } });
         }
 
         function addComment(index) {
@@ -655,6 +692,13 @@
             }
         }
 
+        function adjustNavArrows(container) {
+            const main = container.querySelector('.post-content img, .post-content video, .post-content .image-placeholder, .post-content p');
+            if (!main) return;
+            const offset = main.offsetTop + main.offsetHeight / 2;
+            container.querySelectorAll('.nav-arrow').forEach(ar => ar.style.top = offset + 'px');
+        }
+
         function showSubmissionForm() {
             const grid = document.getElementById("imageGrid");
             grid.style.display = 'none';
@@ -670,7 +714,7 @@
         function addPoll() {
             const q = document.getElementById('pollQuestion').value.trim();
             const opts = document.getElementById('pollOptions').value.split(',').map(o => o.trim()).filter(Boolean);
-            if (!q || opts.length === 0) return;
+            if (!q || opts.length < 2) return;
             newPolls.push({ question: q, options: opts, votes: [] });
             const li = document.createElement('li');
             li.textContent = q + ' [' + opts.join(', ') + ']';
@@ -746,6 +790,8 @@
                 user: "CurrentUser",
                 timestamp: new Date().toISOString()
             };
+            if (!post.md_text && post.attachments.length === 0 && post.polls.length === 0 && post.schedules.length === 0) return;
+            if (post.polls.some(p => p.options.length < 2)) return;
             posts.unshift(post);
             storePost(post);
             document.getElementById("submissionForm").style.display = 'none';
@@ -770,18 +816,27 @@
                     }
                 }
             });
+            document.getElementById('searchInput').addEventListener('keydown', e => {
+                if (e.key === 'Enter') searchPosts();
+            });
+
             document.addEventListener('keydown', (e) => {
                 const focusedPost = document.activeElement;
                 const index = focusedPost ? parseInt(focusedPost.dataset.index) : selectedPostIndex;
 
-                if (e.key === 'w' && index >= postsPerRow) {
+                const up = e.key === 'w' || e.key === 'ArrowUp';
+                const down = e.key === 's' || e.key === 'ArrowDown';
+                const left = e.key === 'a' || e.key === 'ArrowLeft';
+                const right = e.key === 'd' || e.key === 'ArrowRight';
+
+                if (up && index >= postsPerRow) {
                     document.querySelector(`.post[data-index="${index - postsPerRow}"]`).focus();
-                } else if (e.key === 's' && index < posts.length - postsPerRow) {
+                } else if (down && index < posts.length - postsPerRow) {
                     document.querySelector(`.post[data-index="${index + postsPerRow}"]`).focus();
-                } else if (e.key === 'a' && index > 0) {
+                } else if (left && index > 0) {
                     document.querySelector(`.post[data-index="${index - 1}"]`).focus();
                     if (selectedPostIndex === index) navigatePost(-1);
-                } else if (e.key === 'd' && index < posts.length - 1) {
+                } else if (right && index < posts.length - 1) {
                     document.querySelector(`.post[data-index="${index + 1}"]`).focus();
                     if (selectedPostIndex === index) navigatePost(1);
                 }
